@@ -1,0 +1,9 @@
+build/
+*.o
+*.a
+*.so
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.swp

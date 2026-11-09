@@ -4,6 +4,23 @@ set -e
 
 cd "$(dirname "$0")"
 
+# Each launch starts a new session with independent keys for both directions.
+umask 077
+key_file=$(mktemp)
+cleanup() {
+    for pid in "${CLIENT_PID:-}" "${SERVER_PID:-}"; do
+        if [[ -n "$pid" ]]; then
+            sudo kill "$pid" 2>/dev/null || true
+        fi
+    done
+    rm -f -- "$key_file"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+openssl rand -out "$key_file" 64
+sudo -v
+
 echo "=== Setting up VPN namespaces ==="
 
 # Create namespaces if they don't exist
@@ -33,14 +50,14 @@ sudo ip netns exec vpn-server ip link set lo up
 
 echo "=== Starting VPN server ==="
 
-sudo ip netns exec vpn-server ./build/vpn_server &
+sudo ip netns exec vpn-server ./build/vpn_server < "$key_file" &
 SERVER_PID=$!
 
 sleep 1
 
 echo "=== Starting VPN client ==="
 
-sudo ip netns exec vpn-client ./build/vpn_client &
+sudo ip netns exec vpn-client ./build/vpn_client < "$key_file" &
 CLIENT_PID=$!
 
 echo "=== Waiting for TUN interfaces ==="
@@ -58,8 +75,8 @@ echo "=== Configuring VPN tunnel ==="
 sudo ip netns exec vpn-client ip addr add 10.10.0.2/32 dev tun0
 sudo ip netns exec vpn-server ip addr add 10.10.0.1/32 dev tun1
 
-sudo ip netns exec vpn-client ip link set tun0 up
 sudo ip netns exec vpn-server ip link set tun1 up
+sudo ip netns exec vpn-client ip link set tun0 up
 
 sudo ip netns exec vpn-client ip route add 10.10.0.1/32 dev tun0
 sudo ip netns exec vpn-server ip route add 10.10.0.2/32 dev tun1
@@ -84,14 +101,6 @@ echo "       VPN TEST COMPLETE"
 echo "================================"
 echo
 echo "Press Ctrl+C to stop."
-
-cleanup() {
-    echo
-    echo "Stopping VPN..."
-    sudo kill "$CLIENT_PID" "$SERVER_PID" 2>/dev/null || true
-}
-
-trap cleanup INT TERM
 
 wait
 

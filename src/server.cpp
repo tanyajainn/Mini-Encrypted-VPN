@@ -9,22 +9,15 @@
 #include <thread>
 #include <vector>
 
-#include "crypto.h"
-#include "packet.h"
+#include "session.h"
 #include "tun.h"
 
-const std::vector<uint8_t> KEY = {
-    0x10, 0x21, 0x32, 0x43,
-    0x54, 0x65, 0x76, 0x87,
-    0x98, 0xa9, 0xba, 0xcb,
-    0xdc, 0xed, 0xfe, 0x0f,
-    0x11, 0x22, 0x33, 0x44,
-    0x55, 0x66, 0x77, 0x88,
-    0x99, 0xaa, 0xbb, 0xcc,
-    0xdd, 0xee, 0xff, 0x00
-};
-
 int main() {
+    SessionKeys keys;
+    if (!keys.read_from(std::cin, true)) {
+        std::cerr << "Expected 64 bytes of fresh session key material on stdin.\n";
+        return 1;
+    }
     int tun_fd = tun_open("tun1");
 
     if (tun_fd < 0) {
@@ -65,6 +58,7 @@ int main() {
     // UDP -> TUN
     std::thread udp_to_tun([&]() {
         uint8_t buffer[4096];
+        ReplayWindow window;
 
         while (true) {
             sockaddr_in sender{};
@@ -78,7 +72,13 @@ int main() {
                 reinterpret_cast<sockaddr*>(&sender),
                 &sender_len);
 
-            if (n < 31)
+            if (n < 0) {
+                if (errno == EINTR) continue;
+                perror("recvfrom");
+                break;
+            }
+            std::vector<uint8_t> plaintext;
+            if (!open_packet(buffer, static_cast<size_t>(n), keys.receive, window, plaintext))
                 continue;
 
             {
@@ -86,44 +86,6 @@ int main() {
                 client_addr = sender;
                 client_len = sender_len;
                 client_known = true;
-            }
-
-            uint16_t length =
-                (static_cast<uint16_t>(buffer[1]) << 8) |
-                static_cast<uint16_t>(buffer[2]);
-
-            if (length > static_cast<size_t>(n - 3) ||
-                length < 28) {
-                std::cerr << "Invalid packet length\n";
-                continue;
-            }
-
-            std::vector<uint8_t> payload(
-                buffer + 3,
-                buffer + 3 + length);
-
-            std::vector<uint8_t> iv(
-                payload.begin(),
-                payload.begin() + 12);
-
-            std::vector<uint8_t> tag(
-                payload.begin() + 12,
-                payload.begin() + 28);
-
-            std::vector<uint8_t> ciphertext(
-                payload.begin() + 28,
-                payload.end());
-
-            std::vector<uint8_t> plaintext;
-
-            if (!decrypt_data(
-                    ciphertext,
-                    KEY,
-                    iv,
-                    tag,
-                    plaintext)) {
-                std::cerr << "Authentication failed.\n";
-                continue;
             }
 
             ssize_t written = write(
@@ -145,6 +107,7 @@ int main() {
     // TUN -> UDP
     std::thread tun_to_udp([&]() {
         uint8_t buffer[2000];
+        uint64_t sequence = 0;
 
         while (true) {
             ssize_t n = read(
@@ -166,48 +129,11 @@ int main() {
                 }
             }
 
-            std::vector<uint8_t> plaintext(
-                buffer,
-                buffer + n);
-
-            std::vector<uint8_t> iv;
-            std::vector<uint8_t> ciphertext;
-            std::vector<uint8_t> tag;
-
-            if (!encrypt_data(
-                    plaintext,
-                    KEY,
-                    iv,
-                    ciphertext,
-                    tag)) {
+            auto data = seal_packet(buffer, static_cast<size_t>(n), keys.send, sequence);
+            if (data.empty()) {
                 std::cerr << "Encryption failed.\n";
                 continue;
             }
-
-            std::vector<uint8_t> payload;
-
-            payload.insert(
-                payload.end(),
-                iv.begin(),
-                iv.end());
-
-            payload.insert(
-                payload.end(),
-                tag.begin(),
-                tag.end());
-
-            payload.insert(
-                payload.end(),
-                ciphertext.begin(),
-                ciphertext.end());
-
-            VpnPacket packet{};
-            packet.type = 1;
-            packet.length =
-                static_cast<uint16_t>(payload.size());
-            packet.payload = payload;
-
-            auto data = serialize_packet(packet);
 
             std::lock_guard<std::mutex> lock(client_mutex);
 

@@ -40,6 +40,10 @@ int main() {
     check(accept(second) && plain == packet, "authenticated delivery");
     check(accept(first) && plain == packet, "reordered delivery");
     check(!accept(first) && !accept(second), "replay");
+    const std::vector<uint8_t> full_packet(1433, 0x5a);
+    auto full_frame = seal_packet(full_packet.data(), full_packet.size(), client.send, sequence);
+    check(full_frame.size() + 20 + 8 == 1500, "full frame fits IPv4/UDP link");
+    check(accept(full_frame) && plain == full_packet, "full-size packet round trip");
     ReplayWindow boundary;
     check(boundary.accept(65) && boundary.accept(2) && !boundary.accept(1),
           "window boundary");

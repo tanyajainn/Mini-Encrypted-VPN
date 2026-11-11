@@ -39,3 +39,8 @@ if(BUILD_TESTING)
     target_link_libraries(session_test PRIVATE OpenSSL::Crypto)
     add_test(NAME session_packets COMMAND session_test)
 endif()
+
+if(BUILD_TESTING)
+    add_executable(replay_study evaluation/replay_study.cpp)
+    add_test(NAME replay_window_model COMMAND replay_study)
+endif()

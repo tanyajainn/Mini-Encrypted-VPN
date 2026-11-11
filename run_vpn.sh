@@ -40,12 +40,12 @@ sudo ip link set veth-server netns vpn-server
 
 # Configure client side
 sudo ip netns exec vpn-client ip addr add 172.30.0.2/24 dev veth-client
-sudo ip netns exec vpn-client ip link set veth-client up
+sudo ip netns exec vpn-client ip link set veth-client mtu 1500 up
 sudo ip netns exec vpn-client ip link set lo up
 
 # Configure server side
 sudo ip netns exec vpn-server ip addr add 172.30.0.1/24 dev veth-server
-sudo ip netns exec vpn-server ip link set veth-server up
+sudo ip netns exec vpn-server ip link set veth-server mtu 1500 up
 sudo ip netns exec vpn-server ip link set lo up
 
 echo "=== Starting VPN server ==="
@@ -75,8 +75,8 @@ echo "=== Configuring VPN tunnel ==="
 sudo ip netns exec vpn-client ip addr add 10.10.0.2/32 dev tun0
 sudo ip netns exec vpn-server ip addr add 10.10.0.1/32 dev tun1
 
-sudo ip netns exec vpn-server ip link set tun1 up
-sudo ip netns exec vpn-client ip link set tun0 up
+sudo ip netns exec vpn-server ip link set tun1 mtu 1433 up
+sudo ip netns exec vpn-client ip link set tun0 mtu 1433 up
 
 sudo ip netns exec vpn-client ip route add 10.10.0.1/32 dev tun0
 sudo ip netns exec vpn-server ip route add 10.10.0.2/32 dev tun1
@@ -93,7 +93,10 @@ sleep 1
 
 echo "=== Testing VPN connectivity ==="
 
-sudo ip netns exec vpn-client ping -c 3 10.10.0.1
+sudo ip netns exec vpn-client ping -c 3 -W 2 10.10.0.1
+
+echo "=== Testing full-size tunnel packets (MTU 1433) ==="
+sudo ip netns exec vpn-client ping -M do -s 1405 -c 3 -W 2 10.10.0.1
 
 echo
 echo "================================"

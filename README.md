@@ -23,6 +23,20 @@ client TUN (10.10.0.2) --AEAD over UDP:9000--> server TUN (10.10.0.1)
       key exchange: ephemeral X25519 + shared 32-byte PSK + HKDF
 ```
 
+## Project Status
+
+**Educational Networking and Cryptography Prototype | Maintenance Mode**
+
+Active feature development concluded in November 2026.
+
+This project demonstrates encrypted IP tunneling, authenticated key exchange, AES-256-GCM, anti-replay protection, and reproducible network experiments.
+
+The v0.2.0 baseline was validated in WSL2. The v0.3.0 candidate passed automated tests, sanitizer checks, and bounded fuzz testing, but still requires live end-to-end validation.
+
+**Known limitations:** No independent cryptographic audit, automatic rekeying, or production deployment assurance.
+
+This project is retained for educational, research, and portfolio purposes.
+
 ## Quickstart (Ubuntu/Linux)
 
 ```bash

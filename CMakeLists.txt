@@ -1,46 +1,30 @@
 cmake_minimum_required(VERSION 3.16)
-
-project(vpn_project LANGUAGES CXX)
-
+project(mini_encrypted_vpn VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 find_package(OpenSSL REQUIRED)
-
 include_directories(include)
 
-add_executable(vpn_core
-    src/main.cpp
-)
+add_executable(vpn_core src/main.cpp)
+add_library(tunnel_crypto STATIC src/crypto.cpp src/handshake.cpp)
+target_link_libraries(tunnel_crypto PUBLIC OpenSSL::Crypto)
 
-add_executable(vpn_server
-    src/server.cpp
-    src/crypto.cpp
-    src/tun.cpp
-)
-
-target_link_libraries(vpn_server PRIVATE OpenSSL::Crypto)
-
-add_executable(vpn_client
-    src/client.cpp
-    src/crypto.cpp
-    src/tun.cpp
-)
-
-target_link_libraries(vpn_client PRIVATE OpenSSL::Crypto)
-
-add_executable(tun_test
-    src/tun_test.cpp
-)
+add_executable(vpn_server src/server.cpp src/tun.cpp)
+target_link_libraries(vpn_server PRIVATE tunnel_crypto)
+add_executable(vpn_client src/client.cpp src/tun.cpp)
+target_link_libraries(vpn_client PRIVATE tunnel_crypto)
+add_executable(tun_test src/tun_test.cpp)
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(session_test tests/session_test.cpp src/crypto.cpp)
-    target_link_libraries(session_test PRIVATE OpenSSL::Crypto)
+    find_package(Threads REQUIRED)
+    add_executable(session_test tests/session_test.cpp)
+    target_link_libraries(session_test PRIVATE tunnel_crypto)
     add_test(NAME session_packets COMMAND session_test)
-endif()
-
-if(BUILD_TESTING)
+    add_executable(handshake_test tests/handshake_test.cpp)
+    target_link_libraries(handshake_test PRIVATE tunnel_crypto Threads::Threads)
+    add_test(NAME handshake_auth COMMAND handshake_test)
+    set_tests_properties(handshake_auth PROPERTIES TIMEOUT 25)
     add_executable(replay_study evaluation/replay_study.cpp)
     add_test(NAME replay_window_model COMMAND replay_study)
 endif()

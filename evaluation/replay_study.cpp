@@ -1,5 +1,4 @@
 #include "session.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
@@ -8,12 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-struct Arrival {
-    unsigned tick;
-    unsigned sequence;
-};
-
-// Independent specification: store every delivered ID explicitly.
+struct Arrival { unsigned tick; unsigned sequence; };
 class ReferenceWindow {
     unsigned highest = 0;
     unsigned width;
@@ -26,7 +20,6 @@ public:
         return delivered.insert(id).second;
     }
 };
-
 int main() {
     constexpr unsigned packets = 4096;
     std::cout << "seed,max_delay_ticks,window,originals,late_originals,accepted_duplicates\n";
@@ -39,19 +32,19 @@ int main() {
             std::stable_sort(trace.begin(), trace.end(), [](Arrival a, Arrival b) {
                 return a.tick < b.tick;
             });
-            for (unsigned width : {32u, 64u, 128u}) {
+            for (unsigned width : {32u, 64u, 128u, 256u, 512u}) {
                 ReferenceWindow reference(width);
                 ReplayWindow actual;
                 unsigned late = 0, duplicates = 0;
                 auto deliver = [&](unsigned id) {
                     bool expected = reference.accept(id);
-                    if (width == 64 && actual.accept(id) != expected)
-                        throw std::runtime_error("production and reference decisions differ");
+                    if (width == 128 && actual.accept(id) != expected)
+                        throw std::runtime_error("128-bit production bitmap diverged from reference");
                     return expected;
                 };
-                for (auto arrival : trace) {
-                    if (!deliver(arrival.sequence)) ++late;
-                    if (deliver(arrival.sequence)) ++duplicates;
+                for (auto a : trace) {
+                    if (!deliver(a.sequence)) ++late;
+                    if (deliver(a.sequence)) ++duplicates;
                 }
                 if (duplicates || (delay < width && late))
                     throw std::runtime_error("replay-window invariant failed");

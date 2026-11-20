@@ -1,0 +1,7 @@
+condition,path,runs,median_tcp_mbps,tcp_ratio_to_direct,median_udp_mbps,median_udp_loss_percent,median_udp_out_of_order,median_ping_avg_ms,rtt_extra_ms,median_ping_loss_percent
+clean,custom,3,1690.508,0.026,19.997,0.0,,0.652,0.589,0.0
+clean,direct,3,64261.68,1.0,19.997,0.0,,0.063,0.0,0.0
+clean,wireguard,3,1677.87,0.026,19.998,0.0,,0.732,0.669,0.0
+netem,custom,3,3.654,0.684,19.997,0.988,,40.783,0.028,0.0
+netem,direct,3,5.345,1.0,19.997,0.927,,40.755,0.0,0.0
+netem,wireguard,3,3.651,0.683,19.997,1.047,,41.313,0.558,5.0

@@ -7,3 +7,9 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
+*Zone.Identifier
+*.psk
+*.key
+*.conf
+# Local measurements may contain host, kernel and IP information.
+evaluation/results/

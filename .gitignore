@@ -13,3 +13,9 @@ __pycache__/
 *.conf
 # Local measurements may contain host, kernel and IP information.
 evaluation/results/
+# Capstone test binaries, sanitizer builds, and fuzz crash artifacts
+/build-*/
+/crash-*
+/leak-*
+/timeout-*
+/fuzz/corpus/

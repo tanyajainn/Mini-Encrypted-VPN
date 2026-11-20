@@ -63,6 +63,19 @@ independent protocol audit. **Important:** AES-GCM nonce reuse is dangerous; a
 receiver's duplicate check cannot undo nonce reuse by a broken sender.
 Full protocol details: [docs/SECURITY.md](docs/SECURITY.md). For a one-page assessment, see [Threat model](docs/THREAT_MODEL.md).
 
+## Experimental capstone validation (candidate v0.3.0)
+
+The candidate capstone upgrade adds a TUN interface readiness gate, a seeded
+packet-attack campaign, Clang AddressSanitizer/UndefinedBehaviorSanitizer and
+libFuzzer support, and a four-profile replay-window research experiment
+(20 seeds per profile/configuration). See [capstone methods and limitations](docs/CAPSTONE_UPGRADE.md),
+[experimental findings](docs/CAPSTONE_RESULTS.md), and
+[updated validation evidence](docs/VALIDATION.md).
+
+**The research delay models are synthetic; previous WSL2 throughput numbers
+were measured on the v0.2.0 baseline, not the candidate changes.** This is
+not an independent cryptographic audit or a production VPN.
+
 ## Tests and experiments
 
 ```bash
@@ -107,7 +120,7 @@ The [regional exit gateway pilot](gateway/README.md) uses actual WireGuard
 and is **separate from** this experimental C++ tunnel.
 
 The replay evidence plot is in [evaluation/replay-window.png](evaluation/replay-window.png).
-Apply this source-file overlay using [APPLY_UPGRADE.md](APPLY_UPGRADE.md).
+For the capstone candidate overlay, follow [CAPSTONE_APPLY.md](CAPSTONE_APPLY.md).
 
 ## Limitations and authorship
 

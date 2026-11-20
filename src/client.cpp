@@ -37,6 +37,12 @@ int main() {
     }
     int tun_fd = tun_open("tun0");
     if (tun_fd < 0) { close(sock); return 1; }
+    // Do not forward packets before the launch script has assigned IP, MTU,
+    // routes and raised the interface. Prevents startup EIO on TUN writes.
+    if (!tun_wait_up("tun0", 10000)) {
+        std::cerr << "tun0 did not become UP within 10 seconds.\n";
+        close(tun_fd); close(sock); return 1;
+    }
     std::cout << "Authenticated tunnel client ready.\n";
 
     std::thread tun_to_udp([&]() {

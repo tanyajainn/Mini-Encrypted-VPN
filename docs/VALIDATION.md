@@ -1,40 +1,44 @@
-# Validation record — proposed security upgrade
+# Validation record — v0.2.0 baseline and capstone candidate v0.3.0
 
-## Root-free local checks performed
+This document distinguishes **operator-observed network experiments** from
+**locally verified root-free checks** and tasks not yet verified.
 
-- Platform: Linux container, GCC/OpenSSL and CMake C++17 toolchain.
-- Configure/build: `cmake -S . -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build -j2`
-- CTest: **3/3 passed**, including `session_packets`, `handshake_auth`,
-  `replay_window_model`.
-- Replay study: 4,096 unique messages × 5 seeds per configuration.
-  With a 128-tick simulated maximum delay and 20,480 original arrivals,
-  out-of-window originals discarded were:
+## v0.2.0 baseline: operator-observed on Ubuntu/WSL2, November 20, 2026
 
-  | Replay window | Rejected originals | Drop rate |
-  | ---: | ---: | ---: |
-  | 32 | 13,029 | 63.62% |
-  | 64 | 7,981 | 38.97% |
-  | 128 | 0 | 0% |
-  | 256 | 0 | 0% |
-  | 512 | 0 | 0% |
+- Initial CMake build and 3/3 CTest passing.
+- Authenticated X25519 handshake and TUN ping: 3/3 standard ICMP, 3/3
+  1,433-byte tunnel-MTU ICMP; both reported 0% loss.
+- WireGuard peer ping successful in the same two namespaces.
+- Direct/custom/WireGuard 18 benchmark runs completed in clean and netem
+  settings, with three repetitions each; the median CSV was committed to GitHub.
+- Main-branch GitHub Actions passed on the merged v0.2.0 code and again after
+  the documentation commit (as observed at the time).
+- An intermittent TUN `write ... Input/output error` occurred during startup
+  despite later successful connectivity; that issue prompted the new gate.
+- **These observations do not validate candidate v0.3.0 behavior.**
 
-  All immediate duplicate deliveries in the replay study were rejected.
-  These are **simulated reordering observations** after authentication, not
-  real network delivery or application loss measurements.
-- Source includes the replay CSV/PNG and tools to reproduce the analysis.
+## Candidate v0.3.0: local container checks, November 20, 2026
 
-## Checks **not** completed
+- GCC and Clang configurations and builds completed; OpenSSL crypto linked.
+- Normal CTest: **6/6 passed** (`session_packets`, `handshake_auth`,
+  `replay_window_model`, `replay_robustness_campaign`,
+  `packet_attack_campaign`, `tun_startup_readiness`).
+- Clang AddressSanitizer + UndefinedBehaviorSanitizer CTest: **6/6 passed**.
+- Clang libFuzzer: **2,000 executions completed** with sanitizers; no
+  reported crash within that bounded run.
+- Synthetic replay research: 1,600 deterministic scenario/seed/width
+  simulations exported; summary statistics and plot generated. No accepted
+  duplicate or deliberately re-submitted previously seen ID.
+- Local environment lacked privileged namespace/network setup, so the new
+  startup gate has **not yet** been verified in WSL2 live traffic.
 
-- End-to-end tunnel, `ping`, IPv4 TUN MTU and background client/server
-  execution. This container lacks `CAP_NET_ADMIN` / `CAP_NET_RAW`.
-- `iperf3`, actual `tc netem` traffic under load, and WireGuard live throughput
-  or latency measurements. Required networking tools/capabilities are absent.
-- WireGuard source line-count comparison: needs a revision-pinned upstream
-  kernel or WireGuard compatibility source checkout.
-- GitHub Actions run on remote origin, remote branch, pull request, and version
-  tag: GitHub connection is read-only and those actions were not performed.
+## Candidate release gates not yet satisfied
 
-This local result is **not** an independent audit, a production-readiness
-finding, or a WireGuard performance claim. Follow `docs/BENCHMARKING.md` on a
-privileged isolated Linux installation, then add a date, machine, exact commit,
-raw measured values, median comparisons and reproducibility notes.
+- Rerun end-to-end TUN ping and MTU test from `./run_vpn.sh` after applying
+  upgrade; repeat cold starts with `evaluation/stability_smoke.sh 30`
+  after stopping any existing tunnels, recording warnings and failures.
+- Confirm new GitHub Actions `linux` and `sanitized-fuzz` jobs pass on PR.
+- Review the complete diff, including `CMakeLists.txt`, before merging.
+- Re-run direct/custom/WireGuard benchmarks if reporting post-upgrade figures.
+- No third-party cryptographic audit, transport key rotation or resilient
+  multi-peer operation. **Not a production VPN.**

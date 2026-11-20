@@ -1,4 +1,4 @@
-name: Build and CTest
+name: Build, CTest, sanitizers and packet fuzz smoke
 on:
   push:
   pull_request:
@@ -19,10 +19,31 @@ jobs:
         run: cmake --build build --parallel 2
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Capture seeded replay study
-        run: ./build/replay_study > replay-results.csv
+      - name: Capture replay evidence
+        run: |
+          ./build/replay_study > replay-results.csv
+          ./build/replay_robustness > replay-robustness.csv
+          python3 evaluation/analyze_robustness.py replay-robustness.csv replay-robustness-summary.csv
       - uses: actions/upload-artifact@v4
         with:
-          name: replay-results
-          path: replay-results.csv
+          name: replay-model-evidence
+          path: |
+            replay-results.csv
+            replay-robustness.csv
+            replay-robustness-summary.csv
           if-no-files-found: error
+  sanitized-fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compiler and libraries
+        run: sudo apt-get update && sudo apt-get install -y clang cmake libssl-dev
+      - name: Configure Clang ASan, UBSan and libFuzzer
+        run: cmake -S . -B build-sanitized -DCMAKE_CXX_COMPILER=clang++ -DBUILD_TESTING=ON -DENABLE_SANITIZERS=ON -DBUILD_FUZZING=ON -DCMAKE_BUILD_TYPE=Debug
+      - name: Build instrumented binaries
+        run: cmake --build build-sanitized --parallel 2
+      - name: Run unit and attack campaign under sanitizers
+        run: ctest --test-dir build-sanitized --output-on-failure
+      - name: Coverage-guided fuzz smoke (bounded)
+        run: ./build-sanitized/packet_fuzzer -runs=2000 -max_len=256 -print_final_stats=1

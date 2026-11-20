@@ -44,7 +44,7 @@ in an authenticated network handshake rather than directly shared on stdin.
 End the test with Ctrl+C. WSL2 support depends on the kernel and TUN settings.
 Never use this script to provide anonymous browsing or a public VPN service.
 
-## Security summary
+## Crypto design
 
 | Component | Choice |
 | --- | --- |
@@ -61,7 +61,7 @@ unauthenticated spoofing and replays of data packets. Not covered: compromised
 endpoints, stolen PSK, traffic analysis, denial of service, DNS/routing leaks or
 independent protocol audit. **Important:** AES-GCM nonce reuse is dangerous; a
 receiver's duplicate check cannot undo nonce reuse by a broken sender.
-Full protocol details: [docs/SECURITY.md](docs/SECURITY.md).
+Full protocol details: [docs/SECURITY.md](docs/SECURITY.md). For a one-page assessment, see [Threat model](docs/THREAT_MODEL.md).
 
 ## Tests and experiments
 

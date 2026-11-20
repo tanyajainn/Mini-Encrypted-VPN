@@ -39,6 +39,10 @@ int main() {
     }
     int tun_fd = tun_open("tun1");
     if (tun_fd < 0) { close(sock); return 1; }
+    if (!tun_wait_up("tun1", 10000)) {
+        std::cerr << "tun1 did not become UP within 10 seconds.\n";
+        close(tun_fd); close(sock); return 1;
+    }
     std::cout << "Authenticated tunnel server ready.\n";
     std::mutex peer_mutex;
     std::thread udp_to_tun([&]() {

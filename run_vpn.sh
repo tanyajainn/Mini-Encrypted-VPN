@@ -12,6 +12,18 @@ psk_file=$(mktemp)
 CLIENT_PID=''
 SERVER_PID=''
 cleanup() {
+    # Clean up VPN processes, not just their sudo wrappers.
+    local ns pid name
+    for ns in vpn-client vpn-server; do
+        while read -r pid; do
+            [[ "$pid" =~ ^[0-9]+$ ]] || continue
+            name=$(cat "/proc/$pid/comm" 2>/dev/null || true)
+            case "$ns:$name" in
+                vpn-client:vpn_client|vpn-server:vpn_server)
+                    sudo kill "$pid" 2>/dev/null || true ;;
+            esac
+        done < <(sudo ip netns pids "$ns" 2>/dev/null || true)
+    done
     for pid in "$CLIENT_PID" "$SERVER_PID"; do
         if [[ -n "$pid" ]]; then sudo kill "$pid" 2>/dev/null || true; fi
     done
@@ -58,10 +70,14 @@ if [[ "$ready" -ne 1 ]]; then
     echo 'Handshake or TUN setup failed; see client/server output above.' >&2
     exit 1
 fi
+# Finish the complete two-sided address, MTU and route configuration
+# before enabling either interface. The daemons wait for IFF_UP.
 sudo ip netns exec vpn-client ip addr add 10.10.0.2/32 dev tun0
 sudo ip netns exec vpn-server ip addr add 10.10.0.1/32 dev tun1
-sudo ip netns exec vpn-client ip link set tun0 mtu 1433 up
-sudo ip netns exec vpn-server ip link set tun1 mtu 1433 up
+sudo ip netns exec vpn-client ip link set tun0 mtu 1433
+sudo ip netns exec vpn-server ip link set tun1 mtu 1433
+sudo ip netns exec vpn-client ip link set tun0 up
+sudo ip netns exec vpn-server ip link set tun1 up
 sudo ip netns exec vpn-client ip route add 10.10.0.1/32 dev tun0
 sudo ip netns exec vpn-server ip route add 10.10.0.2/32 dev tun1
 
